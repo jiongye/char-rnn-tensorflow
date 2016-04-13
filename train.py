@@ -40,6 +40,7 @@ def main():
     train(args)
 
 def train(args):
+    print(args)
     data_loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
     args.vocab_size = data_loader.vocab_size
 
@@ -60,6 +61,13 @@ def train(args):
             for b in range(data_loader.num_batches):
                 start = time.time()
                 x, y = data_loader.next_batch()
+
+                # tmp = ''
+                # for c in x:
+                #   for i in c:
+                #     tmp += np.array(data_loader.chars)[i]
+                # print(tmp)
+
                 feed = {model.input_data: x, model.targets: y, model.initial_state: state}
                 train_loss, state, _ = sess.run([model.cost, model.final_state, model.train_op], feed)
                 end = time.time()
