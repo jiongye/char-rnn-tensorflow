@@ -20,7 +20,6 @@ class TextLoader():
             print("loading preprocessed files")
             self.load_preprocessed(vocab_file, tensor_file)
         self.create_batches()
-        self.reset_batch_pointer()
 
     def preprocess(self, input_file, vocab_file, tensor_file):
         with open(input_file, "r") as f:
@@ -46,6 +45,10 @@ class TextLoader():
 
     def create_batches(self):
         self.num_batches = int(self.tensor.size / (self.batch_size * self.seq_length))
+
+        if self.num_batches < 50:
+          print('WARNING: less than 50 batches in the data in total? Looks like very small dataset. You probably want to use smaller batch_size and/or seq_length.')
+
         self.tensor = self.tensor[:self.num_batches * self.batch_size * self.seq_length]
         xdata = self.tensor
         ydata = np.copy(self.tensor)
@@ -54,11 +57,26 @@ class TextLoader():
         self.x_batches = xdata.reshape(-1, self.batch_size, self.seq_length)
         self.y_batches = ydata.reshape(-1, self.batch_size, self.seq_length)
 
+        # split data into training and validation, the ratio is 0.95 and 0.05
+        self.ntrain = np.floor(self.num_batches * 0.95).astype('int')
+        self.nvalidation = self.num_batches - self.ntrain #the rest goes to test (to ensure this adds up exactly)
+        self.split_sizes = {'train': self.ntrain, 'validation': self.nvalidation}
+        self.batch_index = {'train': 0, 'validation': 0}
 
-    def next_batch(self):
-        x, y = self.x_batches[self.pointer], self.y_batches[self.pointer]
-        self.pointer += 1
+
+    def next_batch(self, dataset_type):
+        pointer = self.batch_index[dataset_type]
+        if dataset_type == 'validation':
+          pointer = pointer + self.ntrain # offset by train set size
+
+        x, y = self.x_batches[pointer], self.y_batches[pointer]
+
+        self.batch_index[dataset_type] += 1
+
+        if self.batch_index[dataset_type] == self.split_sizes[dataset_type]:
+            self.batch_index[dataset_type] = 0 # cycle around to the beginning
+
         return x, y
 
-    def reset_batch_pointer(self):
-        self.pointer = 0
+    def reset_batch_pointer(self, dataset_type):
+        self.batch_index[dataset_type] = 0

@@ -56,11 +56,13 @@ def train(args):
         saver = tf.train.Saver(tf.all_variables())
         for e in range(args.num_epochs):
             sess.run(tf.assign(model.lr, args.learning_rate * (args.decay_rate ** e)))
-            data_loader.reset_batch_pointer()
+            #print("model learning rate is {}".format(model.lr.eval()))
+            data_loader.reset_batch_pointer('train')
+
             state = model.initial_state.eval()
-            for b in range(data_loader.num_batches):
+            for b in xrange(data_loader.ntrain):
                 start = time.time()
-                x, y = data_loader.next_batch()
+                x, y = data_loader.next_batch('train')
 
                 # tmp = ''
                 # for c in x:
@@ -72,13 +74,23 @@ def train(args):
                 train_loss, state, _ = sess.run([model.cost, model.final_state, model.train_op], feed)
                 end = time.time()
                 print("{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}" \
-                    .format(e * data_loader.num_batches + b,
-                            args.num_epochs * data_loader.num_batches,
+                    .format(e * data_loader.ntrain + b,
+                            args.num_epochs * data_loader.ntrain,
                             e, train_loss, end - start))
-                if (e * data_loader.num_batches + b) % args.save_every == 0:
+                if (e * data_loader.ntrain + b) % args.save_every == 0:
                     checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
-                    saver.save(sess, checkpoint_path, global_step = e * data_loader.num_batches + b)
+                    saver.save(sess, checkpoint_path, global_step = e * data_loader.ntrain + b)
                     print("model saved to {}".format(checkpoint_path))
+
+
+            # eval validation loss
+            data_loader.reset_batch_pointer('validation')
+            validation_state = model.initial_state.eval()
+            for n in xrange(data_loader.nvalidation):
+                x, y = data_loader.next_batch('validation')
+                feed = {model.input_data: x, model.targets: y, model.initial_state: validation_state}
+                validation_loss, validation_state = sess.run([model.cost, model.final_state], feed)
+                print("validation loss is {}".format(validation_loss))
 
 if __name__ == '__main__':
     main()
