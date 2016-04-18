@@ -86,11 +86,15 @@ def train(args):
             # eval validation loss
             data_loader.reset_batch_pointer('validation')
             validation_state = model.initial_state.eval()
+            val_losses = 0
             for n in xrange(data_loader.nvalidation):
                 x, y = data_loader.next_batch('validation')
                 feed = {model.input_data: x, model.targets: y, model.initial_state: validation_state}
                 validation_loss, validation_state = sess.run([model.cost, model.final_state], feed)
-                print("validation loss is {}".format(validation_loss))
+                val_losses += validation_loss
+
+            validation_loss = val_losses / data_loader.nvalidation
+            print("validation loss is {}".format(validation_loss))
 
 if __name__ == '__main__':
     main()
